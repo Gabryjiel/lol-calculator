@@ -8,7 +8,7 @@ const props = defineProps<{
 <template>
   <div
     class="modal-backdrop"
-    v-show="props.isOpen"
+    v-if="props.isOpen"
     @click.self="props.hideBackdrop"
   >
     <slot></slot>

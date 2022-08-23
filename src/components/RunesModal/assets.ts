@@ -5,6 +5,15 @@ export type Rune = {
   name: string;
 };
 
+export type Modes =
+  | "Precision"
+  | "Domination"
+  | "Sorcery"
+  | "Resolve"
+  | "Inspiration";
+
+export type Segment = "primary" | "secondary" | "shards";
+
 const importURL = getURL(import.meta.url, "../../assets/runes/");
 
 export const precisionTree: Rune[][] = [
@@ -358,3 +367,42 @@ export const shardTree: Rune[][] = [
     },
   ],
 ];
+
+export const trees: { img: URL; name: Modes }[] = [
+  {
+    img: new URL("./../../assets/runes/Precision.png", import.meta.url),
+    name: "Precision",
+  },
+  {
+    img: new URL("./../../assets/runes/Domination.png", import.meta.url),
+    name: "Domination",
+  },
+  {
+    img: new URL("./../../assets/runes/Sorcery.png", import.meta.url),
+    name: "Sorcery",
+  },
+  {
+    img: new URL("./../../assets/runes/Resolve.png", import.meta.url),
+    name: "Resolve",
+  },
+  {
+    img: new URL("./../../assets/runes/Inspiration.png", import.meta.url),
+    name: "Inspiration",
+  },
+];
+
+export const backgrounds = {
+  Precision: importURL("BackgroundPrecision.webp"),
+  Domination: importURL("BackgroundDomination.webp"),
+  Sorcery: importURL("BackgroundSorcery.webp"),
+  Resolve: importURL("BackgroundResolve.webp"),
+  Inspiration: importURL("BackgroundInspiration.webp"),
+};
+
+export const runeTrees: Record<Modes, Rune[][]> = {
+  Precision: precisionTree,
+  Domination: dominationTree,
+  Sorcery: sorceryTree,
+  Resolve: resolveTree,
+  Inspiration: inspirationTree,
+};

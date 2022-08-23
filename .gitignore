@@ -28,4 +28,5 @@ coverage
 *.sw?
 
 *.png
+*.webp
 champion.json

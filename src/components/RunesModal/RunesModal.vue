@@ -1,61 +1,31 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import ModalBackdrop from "../ModalBackdrop.vue";
+import ModalBackdrop from "../common/ModalBackdrop.vue";
 import {
-  precisionTree,
-  dominationTree,
-  sorceryTree,
-  resolveTree,
-  inspirationTree,
   shardTree,
-  type Rune,
-} from "./trees";
-
-type Modes = "Precision" | "Domination" | "Sorcery" | "Resolve" | "Inspiration";
-type Segment = "primary" | "secondary" | "shards";
+  backgrounds,
+  runeTrees,
+  trees,
+  type Modes,
+  type Segment,
+} from "./assets";
 
 const props = defineProps<{
   isOpen: boolean;
   hideBackdrop: () => void;
 }>();
 
-const trees: { img: URL; name: Modes }[] = [
-  {
-    img: new URL("./../../assets/runes/Precision.png", import.meta.url),
-    name: "Precision",
-  },
-  {
-    img: new URL("./../../assets/runes/Domination.png", import.meta.url),
-    name: "Domination",
-  },
-  {
-    img: new URL("./../../assets/runes/Sorcery.png", import.meta.url),
-    name: "Sorcery",
-  },
-  {
-    img: new URL("./../../assets/runes/Resolve.png", import.meta.url),
-    name: "Resolve",
-  },
-  {
-    img: new URL("./../../assets/runes/Inspiration.png", import.meta.url),
-    name: "Inspiration",
-  },
-];
-
-const selectedRunes = {
-  keystone: ref<string | null>(null),
-  row1: ref<string | null>(null),
-  row2: ref<string | null>(null),
-  row3: ref<string | null>(null),
-  secondary1: ref<string | null>(null),
-  secondary2: ref<string | null>(null),
-  shardOffensive: ref<string | null>(null),
-  shardMixed: ref<string | null>(null),
-  shardDefensive: ref<string | null>(null),
-};
-
 const primaryMode = ref<Modes>("Precision");
 const secondaryMode = ref<Modes>("Domination");
+const backgroundImage = computed(() => backgrounds[primaryMode.value]);
+
+const selectedRunes = {
+  main: ref<(string | null)[]>([null, null, null, null]),
+  secondary: ref<(string | null)[]>([null, null, null]),
+  shards: ref<(string | null)[]>([null, null, null]),
+};
+
+let lastInserted = 0;
 
 watch(primaryMode, async (newMode) => {
   if (newMode === secondaryMode.value) {
@@ -74,20 +44,12 @@ const secondaryTrees = computed(() =>
   trees.filter((tree) => tree.name !== primaryMode.value)
 );
 
-const runeTrees: Record<Modes, Rune[][]> = {
-  Precision: precisionTree,
-  Domination: dominationTree,
-  Sorcery: sorceryTree,
-  Resolve: resolveTree,
-  Inspiration: inspirationTree,
-};
-
 const primaryTreeToDisplay = computed(() => {
-  return runeTrees[primaryMode.value] ?? precisionTree;
+  return runeTrees[primaryMode.value] ?? runeTrees.Precision;
 });
 
 const secondaryTreeToDisplay = computed(() => {
-  return (runeTrees[secondaryMode.value] ?? precisionTree).slice(1);
+  return (runeTrees[secondaryMode.value] ?? runeTrees.Precision).slice(1);
 });
 
 function switchPrimaryMode(mode: Modes) {
@@ -99,133 +61,82 @@ function switchSecondaryMode(mode: Modes) {
 }
 
 function switchRune(row: number, name: string, segment: Segment = "primary") {
-  let key: keyof typeof selectedRunes | null = null;
-  console.log(row, segment, name);
   if (segment === "primary") {
-    if (row === 0) {
-      key = "keystone";
-    } else if (row === 1) {
-      key = "row1";
-    } else if (row === 2) {
-      key = "row2";
-    } else if (row === 3) {
-      key = "row3";
-    }
+    selectedRunes.main.value[row] = name;
   } else if (segment === "secondary") {
-    if (row === 0) {
-      key = "secondary1";
-    } else if (row === 1) {
-      key = "secondary2";
+    const toNull =
+      [0, 1, 2]
+        .filter((value) => value !== row && value !== lastInserted)
+        .at(0) ?? 0;
+
+    selectedRunes.secondary.value[row] = name;
+
+    if (lastInserted !== row) {
+      selectedRunes.secondary.value[toNull] = null;
+      lastInserted = row;
     }
   } else if (segment === "shards") {
-    if (row === 0) {
-      key = "shardOffensive";
-    } else if (row === 1) {
-      key = "shardMixed";
-    } else if (row === 2) {
-      key = "shardDefensive";
-    }
-  }
-
-  if (key) {
-    selectedRunes[key].value = name;
+    selectedRunes.shards.value[row] = name;
   }
 }
 
-function checkIfRuneIsSelectedInPrimary(row: number, runeName: string) {
-  let ref: string | null = null;
-
-  if (row === 0) {
-    ref = selectedRunes.keystone.value;
-  }
-  if (row === 1) {
-    ref = selectedRunes.row1.value;
-  }
-  if (row === 2) {
-    ref = selectedRunes.row2.value;
-  }
-  if (row === 3) {
-    ref = selectedRunes.row3.value;
-  }
-
-  if (runeName === ref) {
-    return false;
-  }
-
-  return Boolean(ref);
-}
-
-function checkIfRuneIsSelected(name: string, segment: Segment = "primary") {
-  if (
-    segment === "primary" &&
-    (selectedRunes.keystone.value === name ||
-      selectedRunes.row1.value === name ||
-      selectedRunes.row2.value === name ||
-      selectedRunes.row3.value === name)
-  ) {
+function checkIfRuneIsSelected(
+  name: string,
+  segment: Segment = "primary",
+  row?: number
+) {
+  if (segment === "primary" && selectedRunes.main.value.includes(name)) {
     return true;
   } else if (
     segment === "secondary" &&
-    (selectedRunes.secondary1.value === name ||
-      selectedRunes.secondary2.value === name)
+    selectedRunes.secondary.value.includes(name)
   ) {
     return true;
   } else if (
     segment === "shards" &&
-    (selectedRunes.shardOffensive.value === name ||
-      selectedRunes.shardMixed.value === name ||
-      selectedRunes.shardDefensive.value === name)
+    selectedRunes.shards.value[row ?? 0] === name
   ) {
     return true;
   }
 
   return false;
 }
-
-function resetRunes() {
-  selectedRunes.keystone.value = null;
-  selectedRunes.row1.value = null;
-  selectedRunes.row2.value = null;
-  selectedRunes.row3.value = null;
-  selectedRunes.secondary1.value = null;
-  selectedRunes.secondary2.value = null;
-  selectedRunes.shardOffensive.value = null;
-  selectedRunes.shardMixed.value = null;
-  selectedRunes.shardDefensive.value = null;
-}
 </script>
 
 <template>
   <ModalBackdrop :hide-backdrop="props.hideBackdrop" :is-open="props.isOpen">
-    <div class="window">
-      <div class="primary-tree">
-        <div class="primary-header">
-          <img
-            v-for="tree in trees"
-            :class="`${
-              tree.name === primaryMode ? 'no-grayscale' : ''
-            } primary-rune-icon`"
-            :key="tree.name"
-            :src="tree.img.toString()"
-            :alt="tree.name"
-            @click="() => switchPrimaryMode(tree.name)"
-          />
-          <button @click="resetRunes">Reset runes</button>
-        </div>
+    <div
+      class="window"
+      :style="{ backgroundImage: `url(${backgroundImage.toString()})` }"
+    >
+      <div class="primary-container">
+        <div class="primary-balls"></div>
         <div class="primary-content">
-          <div id="precision-tree">
+          <div class="primary-header">
+            <img
+              v-for="tree in trees"
+              :class="`${
+                tree.name === primaryMode ? 'primary-rune-icon-active' : ''
+              } primary-rune-icon`"
+              :key="tree.name"
+              :src="tree.img.toString()"
+              :alt="tree.name"
+              @click="() => switchPrimaryMode(tree.name)"
+            />
+          </div>
+          <div class="primary-tree">
             <div
-              class="primary-content-line"
+              class="rune-line"
               v-for="(line, idx) of primaryTreeToDisplay"
               :key="`line-${idx}`"
             >
               <img
                 v-for="rune in line"
                 :class="`${
-                  checkIfRuneIsSelectedInPrimary(idx, rune.name)
-                    ? ''
-                    : 'no-grayscale'
-                } tree-rune`"
+                  checkIfRuneIsSelected(rune.name, 'primary', idx)
+                    ? 'no-grayscale'
+                    : ''
+                } ${idx === 0 ? 'keystone' : 'tree-rune'}`"
                 :src="rune.img.toString()"
                 :alt="rune.name"
                 :key="rune.name"
@@ -236,59 +147,67 @@ function resetRunes() {
           </div>
         </div>
       </div>
-      <div class="secondary-tree">
-        <div class="secondary-header">
-          <img
-            class="primary-rune-icon"
-            v-for="tree in secondaryTrees"
-            :key="tree.name"
-            :src="tree.img.toString()"
-            :alt="tree.name"
-            @click="() => switchSecondaryMode(tree.name)"
-          />
-        </div>
-        <div class="secondary-content">
-          <div
-            class="secondary-content-line"
-            v-for="(line, idx) of secondaryTreeToDisplay"
-            :key="`line-${idx}`"
-          >
-            <img
-              v-for="rune in line"
-              :class="`${
-                checkIfRuneIsSelected(rune.name, 'secondary')
-                  ? 'no-grayscale'
-                  : ''
-              } tree-rune`"
-              :src="rune.img.toString()"
-              :alt="rune.name"
-              :key="rune.name"
-              :title="rune.name"
-              @click="() => switchRune(idx, rune.name, 'secondary')"
-            />
+      <div class="secondary-container">
+        <div class="secondary-subcontainer">
+          <div class="secondary-balls"></div>
+          <div class="secondary-content">
+            <div class="secondary-header">
+              <img
+                :class="`${
+                  tree.name === secondaryMode ? 'primary-rune-icon-active' : ''
+                } primary-rune-icon`"
+                v-for="tree in secondaryTrees"
+                :key="tree.name"
+                :src="tree.img.toString()"
+                :alt="tree.name"
+                @click="() => switchSecondaryMode(tree.name)"
+              />
+            </div>
+            <div class="secondary-tree">
+              <div
+                class="rune-line"
+                v-for="(line, idx) of secondaryTreeToDisplay"
+                :key="`line-${idx}`"
+              >
+                <img
+                  v-for="rune in line"
+                  :class="`${
+                    checkIfRuneIsSelected(rune.name, 'secondary')
+                      ? 'no-grayscale'
+                      : ''
+                  } tree-rune`"
+                  :src="rune.img.toString()"
+                  :alt="rune.name"
+                  :key="rune.name"
+                  :title="rune.name"
+                  @click="() => switchRune(idx, rune.name, 'secondary')"
+                />
+              </div>
+            </div>
           </div>
         </div>
-      </div>
-      <div class="shards">
-        <div class="shards-content">
-          <div
-            class="shards-content-line"
-            v-for="(line, idx) of shardTree"
-            :key="`shard-line-${idx}`"
-          >
-            <img
-              v-for="rune in line"
-              :class="`${
-                checkIfRuneIsSelected(rune.name, 'secondary')
-                  ? 'no-grayscale'
-                  : ''
-              } shard-rune`"
-              :src="rune.img.toString()"
-              :alt="rune.name"
-              :key="rune.name"
-              :title="rune.name"
-              @click="() => switchRune(idx, rune.name, 'shards')"
-            />
+        <div class="shards-subcontainer">
+          <div class="shards-balls"></div>
+          <div class="shards-content">
+            <div
+              class="shards-content-line"
+              v-for="(line, idx) of shardTree"
+              :key="`shards-line-${idx}`"
+            >
+              <img
+                v-for="rune in line"
+                :class="`${
+                  checkIfRuneIsSelected(rune.name, 'shards', idx)
+                    ? 'no-grayscale'
+                    : ''
+                } shards-rune`"
+                :src="rune.img.toString()"
+                :alt="rune.name"
+                :key="rune.name"
+                :title="rune.name"
+                @click="() => switchRune(idx, rune.name, 'shards')"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -298,36 +217,72 @@ function resetRunes() {
 
 <style scoped>
 .window {
-  width: 700px;
-  height: 600px;
+  width: 1326px;
+  height: 807px;
   background-color: slategrey;
-  border-radius: 20px;
   border: 2px solid black;
-  overflow: hidden;
+  overflow: clip;
   display: flex;
-  flex-direction: column;
   align-items: center;
+  background-size: contain;
+  background-repeat: no-repeat;
 }
-.primary-header {
+.primary-container {
+  width: 40%;
+  height: 100%;
   display: flex;
-  gap: 5px;
+}
+.primary-balls {
+  height: 100%;
+  width: 0%;
+}
+.primary-content {
+  height: 100%;
+  width: 90%;
+}
+.primary-header,
+.secondary-header {
+  display: flex;
+  height: 100px;
+  width: 100%;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
 }
 
 .primary-tree {
   width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-around;
+  align-items: center;
 }
 
+.rune-line {
+  display: flex;
+  gap: 10px;
+  width: 60%;
+  justify-content: space-around;
+}
 .primary-rune-icon {
-  border: 5px solid black;
-  background-color: black;
   border-radius: 100%;
   padding: 5px;
   cursor: pointer;
-  filter: grayscale(0.8);
+  width: 40px;
+  height: 40px;
+  border: 2px solid transparent;
+  transition: border 0.2s;
 }
 
 .primary-rune-icon:hover {
-  filter: grayscale(0.5);
+  border: 2px solid gold;
+  border-radius: 100%;
+}
+
+.primary-rune-icon-active {
+  border: 2px solid gold;
+  border-radius: 100%;
 }
 
 .primary-content {
@@ -340,6 +295,16 @@ function resetRunes() {
   display: flex;
 }
 
+.keystone {
+  width: 96px;
+  height: 96px;
+  filter: grayscale(1);
+  cursor: pointer;
+  border-radius: 100%;
+  transition: outline 0.2s;
+  transition: filter 0.2s;
+}
+
 .tree-rune {
   width: 64px;
   height: 64px;
@@ -348,14 +313,77 @@ function resetRunes() {
   outline-offset: -1px;
   filter: grayscale(1);
   cursor: pointer;
+  transition: outline 0.2s;
   transition: filter 0.2s;
 }
 
-.tree-rune:hover {
-  filter: grayscale(0.5);
+.tree-rune:hover,
+.keystone:hover {
+  outline: 1px solid gold;
 }
-
 .no-grayscale {
   filter: grayscale(0) !important;
+}
+.secondary-container {
+  width: 30%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.secondary-subcontainer {
+  width: 100%;
+  height: 60%;
+  display: flex;
+}
+.secondary-balls {
+  height: 100%;
+  width: 0%;
+}
+.shards-subcontainer {
+  width: 100%;
+  height: 40%;
+  display: flex;
+}
+.secondary-content {
+  width: 90%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.secondary-tree {
+  width: 100%;
+  flex: 1 0 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+}
+.shards-balls {
+  width: 0%;
+  height: 100%;
+}
+.shards-content {
+  width: 90%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-evenly;
+}
+.shards-content-line {
+  display: flex;
+  gap: 10px;
+}
+
+.shards-rune {
+  border-radius: 100%;
+  background-color: rgb(0, 0, 0);
+  border: 2px solid darkgoldenrod;
+  cursor: pointer;
+  filter: grayscale(1);
+}
+
+.shards-rune:hover {
+  border: 2px solid gold;
 }
 </style>
